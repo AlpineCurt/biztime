@@ -1,6 +1,7 @@
 /** Routes for companies of biztime */
 
 const express = require("express");
+const slugify = require("slugify");
 const { route } = require("../app");
 const router = express.Router();
 const db = require("../db");
@@ -18,11 +19,20 @@ router.get("/", async (req, res, next) => {
 router.get("/:code", async (req, res, next) => {
     try {
         const {code} = req.params;
-        const results = await db.query(`SELECT * FROM companies WHERE code=$1`, [code]);
-        if (results.rows.length === 0) {
+        const companyResults = await db.query(`SELECT code, name, description FROM companies WHERE code=$1`, [code]);
+        const indResults = await db.query(`
+            SELECT i.industry
+            FROM industries AS i
+            LEFT JOIN company_industries as ci
+            ON ci.ind_code = i.code
+            WHERE ci.comp_code = $1
+        `, [code]);
+        const company = companyResults.rows[0];
+        company.industries = indResults.rows.map(r => r.industry);
+        if (companyResults.rows.length === 0) {
             throw new ExpressError(`Cannot find company with code of ${code}`, 404);
         }
-        return res.send({company: results.rows[0]});
+        return res.send({company: company});
     } catch (err) {
         return next(err);
     }
@@ -30,10 +40,16 @@ router.get("/:code", async (req, res, next) => {
 
 router.post("/", async (req, res, next) => {
     try {
-        if (!req.body.code || !req.body.name) {
-            throw new ExpressError(`code and name are required`, 400);
+        if (!req.body.name) {
+            throw new ExpressError(`name is required`, 400);
         }
-        const {code, name, description} = req.body;
+        let {code, name, description} = req.body;
+        // regex in remove borrowed from slugify documentation
+        code = (code === undefined) ? slugify(name, {
+            remove: /[*+~.()'"!:@^%&]/g,
+            replacement: '',
+            lower: true
+        }) : code;
         const results = await db.query(`INSERT INTO companies (code, name, description)
         VALUES ($1, $2, $3) RETURNING code, name, description`, [code, name, description]);
         return res.status(201).json({company: results.rows[0]});

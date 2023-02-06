@@ -49,10 +49,18 @@ router.put("/:id", async (req, res, next) => {
             throw new ExpressError(`amt is required`, 404);
         }
         const {id} = req.params;
-        const {amt} = req.body;
-        const results = await db.query(`UPDATE invoices SET amt=$1
-        WHERE id=$2 RETURNING id, comp_code, amt, paid, add_date, paid_date`,
-        [amt, id]);
+        const {amt, paid} = req.body;
+        let results;
+        if (paid) {
+            const currDate = new Date().toISOString().slice(0, 10);
+            results = await db.query(`UPDATE invoices SET paid=$1, paid_date=$2
+            WHERE id=$3 RETURNING id, comp_code, amt, paid, add_date, paid_date`,
+            [true, currDate, id]);
+        } else {
+            results = await db.query(`UPDATE invoices SET paid=$1, paid_date=$2
+            WHERE id=$3 RETURNING id, comp_code, amt, paid, add_date, paid_date`,
+            [false, null, id]);
+        }
         if (results.rows.length === 0) {
             throw new ExpressError(`Cannot find invoice with id of ${id}`, 404);
         }
