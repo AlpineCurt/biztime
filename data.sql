@@ -30,6 +30,8 @@ CREATE TABLE company_industries (
   ind_code TEXT NOT NULL REFERENCES industries ON DELETE CASCADE
 );
 
+ALTER TABLE company_industries ADD CONSTRAINT no_dups UNIQUE (comp_code, ind_code);
+
 INSERT INTO companies
   VALUES ('apple', 'Apple Computer', 'Maker of OSX.'),
          ('ibm', 'IBM', 'Big blue.'),
@@ -50,4 +52,5 @@ INSERT INTO industries (code, industry)
 INSERT INTO company_industries
   VALUES ('apple', 'info'),
          ('cat', 'farm'),
-         ('apple', 'acct');
+         ('apple', 'acct'),
+         ('ibm', 'info');
